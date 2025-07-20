@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Chat App</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+  </head>
+  <body>
+    <div
+      class="auth-container d-flex align-items-center justify-content-center vh-100 w-100 position-fixed top-0 left-0 bg-white"
+      id="authContainer"
+      style="z-index: 9999"
+    >
+      <div
+        class="card shadow-lg p-4"
+        style="min-width: 340px; border-radius: 1.2rem"
+      >
+        <form id="loginForm" autocomplete="off" novalidate>
+          <h3 class="mb-4 text-center text-primary">Login</h3>
+          <div class="form-group">
+            <input
+              type="text"
+              id="loginUsername"
+              class="form-control mb-3"
+              placeholder="Username"
+              required
+              autocomplete="off"
+            />
+          </div>
+          <div class="form-group">
+            <input
+              type="password"
+              id="loginPassword"
+              class="form-control mb-3"
+              placeholder="Password"
+              required
+              autocomplete="off"
+            />
+          </div>
+          <button
+            type="submit"
+            class="btn btn-primary btn-block mb-2"
+            id="loginBtn"
+          >
+            Login
+          </button>
+          <div class="text-center small">
+            Belum punya akun? <a href="#" id="showRegister">Register</a>
+          </div>
+        </form>
+        <form id="registerForm" style="display: none">
+          <h3 class="mb-4 text-center text-success">Register</h3>
+          <div class="form-group">
+            <input
+              type="text"
+              id="registerUsername"
+              class="form-control mb-3"
+              placeholder="Username"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <input
+              type="password"
+              id="registerPassword"
+              class="form-control mb-3"
+              placeholder="Password"
+              required
+            />
+          </div>
+          <button type="submit" class="btn btn-success btn-block mb-2">
+            Register
+          </button>
+          <div class="text-center small">
+            Sudah punya akun? <a href="#" id="showLogin">Login</a>
+          </div>
+        </form>
+      </div>
+    </div>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/open-iconic/1.1.1/font/css/open-iconic-bootstrap.min.css"
+    />
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="login.js"></script>
+  </body>
+</html>

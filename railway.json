@@ -1,0 +1,20 @@
+{
+    "build": {
+        "env": {
+            "NODE_ENV": "production"
+        },
+        "start": "node server.js"
+    },
+    "deploy": {
+        "start": "node server.js"
+    },
+    "plugins": [
+        {
+            "name": "sqlite",
+            "type": "database",
+            "env": {
+                "DATABASE_URL": "sqlite://chatapp.db"
+            }
+        }
+    ]
+}

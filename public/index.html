@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat App</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- bootstrap -->
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+  </head>
+  <body>
+    <div
+      class="container-fluid vh-100 d-flex flex-column p-0"
+      style="background: #f4f6fb"
+    >
+      <div class="row flex-grow-1 m-0">
+        <aside
+          class="col-md-3 col-lg-2 d-flex flex-column bg-white shadow-sm p-0 border-end"
+        >
+          <div
+            class="sidebar-header d-flex align-items-center p-3 border-bottom bg-light"
+          >
+            <img
+              src=""
+              id="myAvatar"
+              class="rounded-circle mr-2"
+              width="40"
+              height="40"
+              alt="Me"
+            />
+            <div>
+              <div id="myUsername" class="font-weight-bold text-dark"></div>
+              <div class="text-success small">Online</div>
+            </div>
+            <button
+              id="logoutBtn"
+              class="btn btn-outline-danger btn-sm ml-auto"
+            >
+              Logout
+            </button>
+          </div>
+          <div class="sidebar-users flex-grow-1 overflow-auto">
+            <ul id="users" class="list-unstyled mb-0"></ul>
+          </div>
+        </aside>
+        <main class="col-md-9 col-lg-10 d-flex flex-column p-0">
+          <header
+            class="chat-header d-flex align-items-center px-4 py-3 border-bottom bg-white shadow-sm"
+          >
+            <img
+              src="avatar-default.png"
+              id="chatAvatar"
+              class="rounded-circle mr-3"
+              width="44"
+              height="44"
+              alt="User"
+              style="display: none"
+            />
+            <div class="flex-grow-1">
+              <div id="chatUsername" class="font-weight-bold text-dark">
+                Pilih user untuk mulai chat
+              </div>
+              <div id="chatStatus" class="text-success small"></div>
+            </div>
+            <div class="ml-auto">
+              <button
+                type="button"
+                id="voiceCallBtn"
+                class="btn btn-outline-secondary btn-sm mr-2"
+                title="Voice Call"
+              >
+                <span class="oi oi-phone"></span>
+              </button>
+              <button
+                type="button"
+                id="videoCallBtn"
+                class="btn btn-outline-secondary btn-sm"
+                title="Video Call"
+              >
+                <span class="oi oi-video"></span>
+              </button>
+            </div>
+          </header>
+          <section
+            class="chat-messages flex-grow-1 px-3 py-4 overflow-auto position-relative"
+            id="messages"
+            style="background: #ece5dd"
+          ></section>
+          <form
+            id="messageForm"
+            class="d-flex align-items-center px-3 py-3 border-top bg-light"
+            autocomplete="off"
+            style="gap: 0.5rem"
+          >
+            <button
+              type="button"
+              id="attachBtn"
+              class="btn btn-light btn-sm rounded-circle mr-2"
+              title="Attach"
+            >
+              <span class="oi oi-paperclip"></span>
+            </button>
+            <input
+              id="messageInput"
+              type="text"
+              class="form-control rounded-pill px-3"
+              placeholder="Type a message..."
+              autocomplete="off"
+              required
+              style="background: #f7f7f7; border: none"
+            />
+            <button
+              type="submit"
+              class="btn btn-primary rounded-circle ml-2"
+              style="
+                width: 42px;
+                height: 42px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              "
+            >
+              <span class="oi oi-envelope-closed"></span>
+            </button>
+          </form>
+          <div class="modal" id="callModal" style="display: none">
+            <div class="modal-dialog modal-dialog-centered">
+              <div
+                class="modal-content p-0"
+                style="
+                  border-radius: 1.2rem;
+                  overflow: hidden;
+                  background: #111;
+                "
+              >
+                <div
+                  class="modal-header border-0 align-items-center"
+                  style="
+                    background: linear-gradient(
+                      90deg,
+                      #25d366 0%,
+                      #128c7e 100%
+                    );
+                    color: #fff;
+                  "
+                >
+                  <span
+                    class="font-weight-bold"
+                    id="callTypeLabel"
+                    style="font-size: 1.2rem"
+                    >Panggilan</span
+                  >
+                  <span
+                    id="callStatusLabel"
+                    style="
+                      margin-left: 1rem;
+                      font-size: 1rem;
+                      font-weight: 500;
+                      color: #e0f7fa;
+                    "
+                  ></span>
+                  <button
+                    type="button"
+                    class="close text-white ml-auto"
+                    id="closeCallModal"
+                    style="font-size: 2rem; opacity: 0.7"
+                  >
+                    &times;
+                  </button>
+                </div>
+                <div
+                  class="modal-body p-0 position-relative"
+                  id="callContainer"
+                  style="
+                    background: #111;
+                    border-radius: 1.2rem;
+                    padding: 0;
+                    min-height: 340px;
+                  "
+                >
+                  <video
+                    id="remoteVideo"
+                    autoplay
+                    playsinline
+                    style="
+                      width: 100%;
+                      height: 320px;
+                      object-fit: cover;
+                      border-radius: 1.2rem;
+                      background: #222;
+                      box-shadow: 0 2px 12px #0005;
+                      border: 2px solid #fff;
+                    "
+                  ></video>
+                  <div
+                    style="
+                      position: absolute;
+                      left: 1.2rem;
+                      bottom: 4.5rem;
+                      display: flex;
+                      align-items: center;
+                      gap: 0.7rem;
+                    "
+                  >
+                    <div
+                      id="remoteAvatar"
+                      style="
+                        width: 54px;
+                        height: 54px;
+                        border-radius: 50%;
+                        background: linear-gradient(
+                          135deg,
+                          #25d366 60%,
+                          #128c7e 100%
+                        );
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-shadow: 0 2px 12px #0002;
+                        border: 2px solid #fff;
+                        font-size: 1.7rem;
+                        color: #fff;
+                        font-weight: bold;
+                      "
+                    ></div>
+                    <span
+                      id="remoteCallerLabel"
+                      style="
+                        color: #fff;
+                        font-weight: bold;
+                        font-size: 1.1rem;
+                        text-shadow: 0 2px 8px #000a;
+                      "
+                      >Penerima</span
+                    >
+                  </div>
+                  <video
+                    id="localVideo"
+                    autoplay
+                    muted
+                    playsinline
+                    style="
+                      position: absolute;
+                      right: 1.2rem;
+                      bottom: 4.5rem;
+                      width: 70px;
+                      height: 70px;
+                      border-radius: 50%;
+                      background: #444;
+                      box-shadow: 0 2px 12px #0002;
+                      border: 2px solid #25d366;
+                    "
+                  ></video>
+                  <div
+                    id="callActionBtns"
+                    class="d-flex justify-content-center"
+                    style="
+                      position: absolute;
+                      left: 50%;
+                      transform: translateX(-50%);
+                      bottom: 1.2rem;
+                      gap: 2.5rem;
+                      z-index: 2;
+                    "
+                  >
+                    <button
+                      id="acceptCallBtn"
+                      class="btn btn-success btn-lg rounded-circle shadow"
+                      style="
+                        width: 60px;
+                        height: 60px;
+                        font-size: 1.4rem;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: linear-gradient(
+                          135deg,
+                          #25d366 60%,
+                          #128c7e 100%
+                        );
+                        border: none;
+                        box-shadow: 0 2px 8px #128c7e55;
+                        transition: transform 0.15s;
+                      "
+                    >
+                      <span class="oi oi-phone"></span>
+                    </button>
+                    <button
+                      id="rejectCallBtn"
+                      class="btn btn-danger btn-lg rounded-circle shadow"
+                      style="
+                        width: 60px;
+                        height: 60px;
+                        font-size: 1.4rem;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: linear-gradient(
+                          135deg,
+                          #ff5252 60%,
+                          #c62828 100%
+                        );
+                        border: none;
+                        box-shadow: 0 2px 8px #c6282855;
+                        transition: transform 0.15s;
+                      "
+                    >
+                      <span class="oi oi-x"></span>
+                    </button>
+                    <button
+                      id="endCallBtn"
+                      class="btn btn-danger btn-lg rounded-circle shadow"
+                      style="
+                        width: 60px;
+                        height: 60px;
+                        font-size: 1.4rem;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: linear-gradient(
+                          135deg,
+                          #ff5252 60%,
+                          #c62828 100%
+                        );
+                        border: none;
+                        box-shadow: 0 2px 8px #c6282855;
+                        transition: transform 0.15s;
+                      "
+                    >
+                      <span class="oi oi-media-stop"></span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <!-- Halaman dashboard, login/register sudah dipisah ke login.html -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/open-iconic/1.1.1/font/css/open-iconic-bootstrap.min.css"
+    />
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
