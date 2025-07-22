@@ -4,7 +4,7 @@ const { Server } = require('socket.io');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
-const dbPromise = require('./db');
+const pool = require('./db');
 
 
 
@@ -12,7 +12,6 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Serve frontend static files
 const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -21,22 +20,27 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Inisialisasi DB otomatis jika tabel belum ada
-dbPromise.then(async db => {
-  await db.run(`CREATE TABLE IF NOT EXISTS users (
-    username TEXT PRIMARY KEY,
-    passwordHash TEXT NOT NULL,
-    lastSeen TEXT
-  )`);
-  await db.run(`CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fromUser TEXT NOT NULL,
-    toUser TEXT NOT NULL,
-    text TEXT,
-    time TEXT
-  )`);
-  console.log('Database siap!');
-});
+// Inisialisasi tabel MySQL jika belum ada
+async function initTables() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS users (
+      username VARCHAR(64) PRIMARY KEY,
+      passwordHash VARCHAR(255) NOT NULL,
+      lastSeen VARCHAR(64)
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS messages (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      fromUser VARCHAR(64) NOT NULL,
+      toUser VARCHAR(64) NOT NULL,
+      text TEXT,
+      time VARCHAR(64)
+    )`);
+    console.log('Tabel users dan messages siap!');
+  } catch (e) {
+    console.error('Gagal inisialisasi tabel:', e.message);
+  }
+}
+initTables();
 
 // Middleware untuk parsing JSON body
 app.use(express.json());
@@ -47,13 +51,12 @@ app.post('/api/register', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Username dan password wajib diisi.' });
   }
   try {
-    const db = await dbPromise;
-    const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
-    if (user) {
+    const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+    if (rows.length > 0) {
       return res.status(409).json({ success: false, message: 'Username sudah terdaftar.' });
     }
     const passwordHash = await bcrypt.hash(password, 10);
-    await db.run('INSERT INTO users (username, passwordHash) VALUES (?, ?)', [username, passwordHash]);
+    await pool.query('INSERT INTO users (username, passwordHash) VALUES (?, ?)', [username, passwordHash]);
     return res.json({ success: true, message: 'Register berhasil.' });
   } catch (e) {
     return res.status(500).json({ success: false, message: 'Terjadi kesalahan server.' });
@@ -67,11 +70,11 @@ app.post('/api/login', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Username dan password wajib diisi.' });
   }
   try {
-    const db = await dbPromise;
-    const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
-    if (!user) {
+    const [rows] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+    if (rows.length === 0) {
       return res.status(401).json({ success: false, message: 'Username tidak ditemukan.' });
     }
+    const user = rows[0];
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       return res.status(401).json({ success: false, message: 'Password salah.' });
@@ -86,8 +89,9 @@ app.post('/api/login', async (req, res) => {
 const SECRET = 'chatappsecret';
 const onlineUsers = {}; // socket.id: username
 // Helper: get user info by socket id (ASYNC, gunakan callback)
-function getUserList(callback) {
-  dbPromise.then(db => db.all('SELECT username, lastSeen FROM users', [])).then(rows => {
+async function getUserList(callback) {
+  try {
+    const [rows] = await pool.query('SELECT username, lastSeen FROM users');
     const userList = [];
     let currentUsername = null;
     if (typeof callback.currentUsername === 'string') {
@@ -111,7 +115,9 @@ function getUserList(callback) {
       });
     }
     callback(userList);
-  });
+  } catch (e) {
+    callback([]);
+  }
 }
 
 // Middleware Auth
@@ -126,7 +132,6 @@ function verifyToken(token) {
 // Socket.io
 io.on('connection', (socket) => {
   socket.on('join', async ({ token }) => {
-    const db = await dbPromise;
     const payload = verifyToken(token);
     if (!payload) {
       socket.emit('forceLogout');
@@ -134,7 +139,7 @@ io.on('connection', (socket) => {
     }
     const username = payload.username;
     onlineUsers[socket.id] = username;
-    await db.run('UPDATE users SET lastSeen = NULL WHERE username = ?', [username]);
+    await pool.query('UPDATE users SET lastSeen = NULL WHERE username = ?', [username]);
     getUserList(Object.assign(function(userList) {
       io.emit('userList', userList);
       socket.emit('userList', userList);
@@ -146,7 +151,6 @@ io.on('connection', (socket) => {
 
     // Private message
     socket.on('privateMessage', async ({ to, text }) => {
-      const db = await dbPromise;
       const fromName = onlineUsers[socket.id];
       if (!fromName || !to) return;
       const time = new Date().toLocaleTimeString();
@@ -155,7 +159,7 @@ io.on('connection', (socket) => {
         if (sid === to) toName = uname;
       }
       if (!toName) toName = to;
-      await db.run('INSERT INTO messages (fromUser, toUser, text, time) VALUES (?, ?, ?, ?)', [fromName, toName, text, time]);
+      await pool.query('INSERT INTO messages (fromUser, toUser, text, time) VALUES (?, ?, ?, ?)', [fromName, toName, text, time]);
       if (onlineUsers[to]) {
         socket.to(to).emit('privateMessage', { user: fromName, text, time });
       }
@@ -163,10 +167,9 @@ io.on('connection', (socket) => {
 
     // Ambil riwayat chat privat
     socket.on('getHistory', async ({ withUser }) => {
-      const db = await dbPromise;
       const fromName = onlineUsers[socket.id];
       if (!fromName || !withUser) return;
-      const rows = await db.all('SELECT * FROM messages WHERE (fromUser = ? AND toUser = ?) OR (fromUser = ? AND toUser = ?) ORDER BY id ASC', [fromName, withUser, withUser, fromName]);
+      const [rows] = await pool.query('SELECT * FROM messages WHERE (fromUser = ? AND toUser = ?) OR (fromUser = ? AND toUser = ?) ORDER BY id ASC', [fromName, withUser, withUser, fromName]);
       socket.emit('chatHistory', rows);
     });
 
@@ -202,11 +205,10 @@ io.on('connection', (socket) => {
 
 
     socket.on('logout', async () => {
-      const db = await dbPromise;
       const username = onlineUsers[socket.id];
       if (username) {
         const lastSeen = new Date().toLocaleTimeString();
-        await db.run('UPDATE users SET lastSeen = ? WHERE username = ?', [lastSeen, username]);
+        await pool.query('UPDATE users SET lastSeen = ? WHERE username = ?', [lastSeen, username]);
         delete onlineUsers[socket.id];
         getUserList(Object.assign(function(userList) {
           io.emit('userList', userList);
@@ -215,11 +217,10 @@ io.on('connection', (socket) => {
       }
     });
     socket.on('disconnect', async () => {
-      const db = await dbPromise;
       const username = onlineUsers[socket.id];
       if (username) {
         const lastSeen = new Date().toLocaleTimeString();
-        await db.run('UPDATE users SET lastSeen = ? WHERE username = ?', [lastSeen, username]);
+        await pool.query('UPDATE users SET lastSeen = ? WHERE username = ?', [lastSeen, username]);
         delete onlineUsers[socket.id];
         getUserList(Object.assign(function(userList) {
           io.emit('userList', userList);

@@ -1,7 +1,15 @@
-const sqlite = require('sqlite');
-const sqlite3 = require('sqlite3');
-const path = require('path');
-const dbPath = path.join(__dirname, 'db.sqlite');
+const mysql = require('mysql2/promise');
 
-// Export promise db agar bisa di-import dengan await di file lain
-module.exports = sqlite.open({ filename: dbPath, driver: sqlite3.Database });
+// Koneksi pool MySQL
+const pool = mysql.createPool({
+  host: 'shortline.proxy.rlwy.net',
+  port: 32221,
+  user: 'root',
+  password: 'NhNwIOOsTARbMlapGfVjpEOFoTVrZbde',
+  database: 'railway',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+module.exports = pool;
