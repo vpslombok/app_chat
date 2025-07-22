@@ -5,9 +5,83 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const dbPromise = require('./db');
+
+
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+
+// Serve frontend static files
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Redirect root to login.html (atau index.html jika sudah login)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// Inisialisasi DB otomatis jika tabel belum ada
+dbPromise.then(async db => {
+  await db.run(`CREATE TABLE IF NOT EXISTS users (
+    username TEXT PRIMARY KEY,
+    passwordHash TEXT NOT NULL,
+    lastSeen TEXT
+  )`);
+  await db.run(`CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fromUser TEXT NOT NULL,
+    toUser TEXT NOT NULL,
+    text TEXT,
+    time TEXT
+  )`);
+  console.log('Database siap!');
+});
+
+// Middleware untuk parsing JSON body
+app.use(express.json());
+// Route: Register
+app.post('/api/register', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: 'Username dan password wajib diisi.' });
+  }
+  try {
+    const db = await dbPromise;
+    const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
+    if (user) {
+      return res.status(409).json({ success: false, message: 'Username sudah terdaftar.' });
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    await db.run('INSERT INTO users (username, passwordHash) VALUES (?, ?)', [username, passwordHash]);
+    return res.json({ success: true, message: 'Register berhasil.' });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server.' });
+  }
+});
+
+// Route: Login
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: 'Username dan password wajib diisi.' });
+  }
+  try {
+    const db = await dbPromise;
+    const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Username tidak ditemukan.' });
+    }
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      return res.status(401).json({ success: false, message: 'Password salah.' });
+    }
+    const token = jwt.sign({ username }, SECRET, { expiresIn: '2d' });
+    return res.json({ success: true, token });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server.' });
+  }
+});
 
 const SECRET = 'chatappsecret';
 const onlineUsers = {}; // socket.id: username
@@ -154,6 +228,11 @@ io.on('connection', (socket) => {
       }
     });
 });
+
+app.use(cors({
+  origin: ['https://vc_nodejs.me', 'http://localhost:3000'],
+  credentials: true
+}));
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log('Server running on port ' + PORT));
