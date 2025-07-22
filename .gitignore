@@ -1,0 +1,12 @@
+# Node.js
+.env
+chatapp.db
+debug.log
+*.sqlite
+*.sqlite3
+.DS_Store
+npm-debug.log
+# Railway
+railway.json
+# VSCode
+.vscode/
