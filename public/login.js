@@ -24,7 +24,7 @@ loginForm.onsubmit = function(e) {
 
 function manualLogin(username, password) {
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', 'http://localhost:3000/api/login', true);
+    xhr.open('POST', 'https://appchat-production-7516.up.railway.app/api/login', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4) {
@@ -53,7 +53,7 @@ registerForm.onsubmit = function(e) {
 
 function manualRegister(username, password) {
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', 'http://localhost:3000/api/register', true);
+    xhr.open('POST', 'https://appchat-production-7516.up.railway.app/api/register', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.onreadystatechange = function() {
         if (xhr.readyState === 4) {

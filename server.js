@@ -231,7 +231,7 @@ io.on('connection', (socket) => {
 });
 
 app.use(cors({
-  origin: ['https://vc_nodejs.me', 'http://localhost:3000'],
+  origin: ['https://appchat-production-7516.up.railway.app', 'https://appchat-production-7516.up.railway.app'],
   credentials: true
 }));
 
