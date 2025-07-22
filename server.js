@@ -88,35 +88,27 @@ app.post('/api/login', async (req, res) => {
 
 const SECRET = 'chatappsecret';
 const onlineUsers = {}; // socket.id: username
-// Helper: get user info by socket id (ASYNC, gunakan callback)
-async function getUserList(callback) {
+
+// Helper: update user list for all clients
+async function updateUserList() {
   try {
     const [rows] = await pool.query('SELECT username, lastSeen FROM users');
     const userList = [];
-    let currentUsername = null;
-    if (typeof callback.currentUsername === 'string') {
-      currentUsername = callback.currentUsername;
-    }
-    if (rows) {
-      rows.forEach(row => {
-        // Cari socket id jika online
-        let onlineId = null;
-        for (const [sid, uname] of Object.entries(onlineUsers)) {
-          if (uname === row.username) onlineId = sid;
-        }
-        // Jangan tampilkan diri sendiri
-        if (currentUsername && row.username === currentUsername) return;
-        userList.push({
-          id: onlineId || row.username,
-          name: row.username,
-          online: !!onlineId,
-          lastSeen: row.lastSeen || null
-        });
+    for (const row of rows) {
+      let onlineId = null;
+      for (const [sid, uname] of Object.entries(onlineUsers)) {
+        if (uname === row.username) onlineId = sid;
+      }
+      userList.push({
+        id: onlineId || row.username,
+        name: row.username,
+        online: !!onlineId,
+        lastSeen: row.lastSeen || null
       });
     }
-    callback(userList);
+    io.emit('userList', userList);
   } catch (e) {
-    callback([]);
+    io.emit('userList', []);
   }
 }
 
@@ -140,10 +132,7 @@ io.on('connection', (socket) => {
     const username = payload.username;
     onlineUsers[socket.id] = username;
     await pool.query('UPDATE users SET lastSeen = NULL WHERE username = ?', [username]);
-    getUserList(Object.assign(function(userList) {
-      io.emit('userList', userList);
-      socket.emit('userList', userList);
-    }, { currentUsername: username }));
+    updateUserList();
     socket.emit('message', { user: 'System', text: 'Welcome to the chat!', time: new Date().toLocaleTimeString() });
     socket.broadcast.emit('message', { user: 'System', text: `${username} bergabung ke chat.`, time: new Date().toLocaleTimeString() });
   });
@@ -207,24 +196,20 @@ io.on('connection', (socket) => {
     socket.on('logout', async () => {
       const username = onlineUsers[socket.id];
       if (username) {
-        const lastSeen = new Date().toLocaleTimeString();
+        const lastSeen = new Date().toLocaleString();
         await pool.query('UPDATE users SET lastSeen = ? WHERE username = ?', [lastSeen, username]);
         delete onlineUsers[socket.id];
-        getUserList(Object.assign(function(userList) {
-          io.emit('userList', userList);
-        }, { currentUsername: username }));
+        updateUserList();
         io.emit('message', { user: 'System', text: `${username} keluar dari chat.`, time: lastSeen });
       }
     });
     socket.on('disconnect', async () => {
       const username = onlineUsers[socket.id];
       if (username) {
-        const lastSeen = new Date().toLocaleTimeString();
+        const lastSeen = new Date().toLocaleString();
         await pool.query('UPDATE users SET lastSeen = ? WHERE username = ?', [lastSeen, username]);
         delete onlineUsers[socket.id];
-        getUserList(Object.assign(function(userList) {
-          io.emit('userList', userList);
-        }, { currentUsername: username }));
+        updateUserList();
         io.emit('message', { user: 'System', text: `${username} keluar dari chat.`, time: lastSeen });
       }
     });
